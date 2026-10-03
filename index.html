@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Air Slice: Jejak Agama Alam Melayu</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<style>
+  :root{
+    --bg1:#1a0b26;
+    --bg2:#3a103f;
+    --gold:#ffd86b;
+    --pink:#ff4fa3;
+    --purple:#8f5cff;
+    --panel:rgba(30,10,40,.86);
+    --panel2:rgba(70,20,80,.72);
+    --text:#fff7ff;
+    --muted:#d9c7df;
+    --good:#7dffbd;
+    --bad:#ff758f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,Arial,sans-serif;background:
+    radial-gradient(circle at 20% 20%,rgba(143,92,255,.24),transparent 30%),
+    radial-gradient(circle at 80% 20%,rgba(255,79,163,.18),transparent 28%),
+    linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);overflow:hidden}
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;
+    background-image:
+      linear-gradient(120deg,transparent 0 48%,rgba(255,216,107,.15) 49%,transparent 50%),
+      radial-gradient(circle at 50% 110%,rgba(255,216,107,.16),transparent 40%);
+  }
+  .app{height:100%;display:grid;grid-template-rows:auto 1fr auto}
+  header{display:flex;justify-content:space-between;align-items:center;padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,5,24,.7);backdrop-filter:blur(12px)}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:48px;height:48px;border-radius:16px;background:linear-gradient(145deg,var(--pink),var(--purple));display:grid;place-items:center;font-size:26px;box-shadow:0 0 28px rgba(255,79,163,.35)}
+  .brand h1{font-size:18px;margin:0}.brand small{color:var(--muted)}
+  .hud{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .pill{padding:9px 13px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-weight:800}
+  .main{position:relative;display:grid;place-items:center;padding:18px}
+  .screen{display:none;width:min(1180px,96vw);height:min(690px,82vh)}
+  .screen.active{display:block}
+  .card{background:linear-gradient(145deg,rgba(50,14,63,.93),rgba(24,8,35,.95));border:1px solid rgba(255,255,255,.12);border-radius:28px;box-shadow:0 22px 70px rgba(0,0,0,.38);overflow:hidden}
+  #startScreen{height:auto;max-width:850px;margin:auto;padding:34px;text-align:center}
+  .heroIcon{font-size:70px;filter:drop-shadow(0 0 16px rgba(255,216,107,.4))}
+  #startScreen h2{font-size:42px;margin:8px 0 6px}
+  .subtitle{color:var(--gold);font-weight:900;letter-spacing:.08em}
+  .desc{max-width:670px;margin:14px auto 24px;color:var(--muted);line-height:1.6}
+  .nameRow{display:flex;gap:10px;max-width:560px;margin:0 auto 16px}
+  input{flex:1;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:white;font-size:17px;outline:none}
+  button{border:0;border-radius:16px;padding:14px 20px;font-weight:900;font-size:16px;cursor:pointer;color:#1d1021;background:linear-gradient(135deg,var(--gold),#ffb83d);box-shadow:0 10px 26px rgba(255,184,61,.25)}
+  button.secondary{background:rgba(255,255,255,.09);color:white;border:1px solid rgba(255,255,255,.15);box-shadow:none}
+  .soundBtn{padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:white;border:1px solid rgba(255,255,255,.12);box-shadow:none}
+  .cameraStatus{font-size:12px;color:var(--muted);margin-top:7px;text-align:center}
+  .trail{position:fixed;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,#fff 0 20%,var(--gold) 30%,rgba(255,216,107,0) 70%);pointer-events:none;z-index:45;filter:drop-shadow(0 0 8px var(--gold));animation:trailFade .28s linear forwards}
+  @keyframes trailFade{to{opacity:0;transform:scale(.15)}}
+  .confetti{position:fixed;top:-12px;width:10px;height:16px;border-radius:3px;z-index:99;pointer-events:none;animation:fall 2.8s linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
+  .bossGlow{animation:bossPulse 1.2s ease-in-out infinite alternate}
+  @keyframes bossPulse{from{box-shadow:0 0 0 rgba(255,216,107,0)}to{box-shadow:0 0 35px rgba(255,216,107,.35)}}
+  .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+  .tip{padding:15px;border-radius:18px;background:rgba(255,255,255,.06);color:var(--muted)}
+  .tip b{display:block;color:white;margin-bottom:5px}
+  #gameScreen{position:relative}
+  .arena{height:100%;display:grid;grid-template-columns:230px 1fr;gap:14px}
+  .side{display:flex;flex-direction:column;gap:12px}
+  .camCard{position:relative;aspect-ratio:4/3;border-radius:24px;overflow:hidden;background:#09050d;border:1px solid rgba(255,255,255,.15)}
+  video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  #cursor{position:absolute;width:30px;height:30px;border-radius:50%;border:4px solid var(--gold);box-shadow:0 0 18px var(--gold);transform:translate(-50%,-50%);pointer-events:none;z-index:20;display:none}
+  #cursor::after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:white;left:7px;top:7px}
+  .sideCard{padding:14px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+  .sideCard .big{font-size:25px;font-weight:1000}
+  .play{position:relative;padding:18px;display:grid;grid-template-rows:auto 1fr auto;gap:14px}
+  .questionBox{padding:18px 20px;border-radius:22px;background:linear-gradient(135deg,rgba(143,92,255,.18),rgba(255,79,163,.12));border:1px solid rgba(255,255,255,.13)}
+  .qMeta{display:flex;justify-content:space-between;color:var(--gold);font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+  .question{font-size:clamp(22px,2.3vw,36px);font-weight:1000;line-height:1.18;margin-top:10px;text-align:center}
+  .answers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:center}
+  .answer{min-height:180px;padding:18px;border-radius:28px;background:linear-gradient(150deg,rgba(255,255,255,.1),rgba(255,255,255,.05));border:2px solid rgba(255,255,255,.14);display:grid;place-items:center;text-align:center;font-size:clamp(18px,1.8vw,28px);font-weight:1000;position:relative;transition:.18s;user-select:none}
+  .answer::before{content:attr(data-letter);position:absolute;top:12px;left:14px;width:34px;height:34px;border-radius:10px;background:rgba(255,216,107,.16);display:grid;place-items:center;color:var(--gold)}
+  .answer.hover{transform:scale(1.035);border-color:var(--gold);box-shadow:0 0 28px rgba(255,216,107,.25)}
+  .answer.correct{background:rgba(65,207,139,.22);border-color:var(--good)}
+  .answer.wrong{background:rgba(255,80,110,.2);border-color:var(--bad)}
+  .progress{height:12px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  #timeBar{height:100%;width:100%;background:linear-gradient(90deg,var(--pink),var(--gold));transition:width .1s linear}
+  .status{min-height:34px;text-align:center;font-size:20px;font-weight:1000;color:var(--gold)}
+  #resultScreen{height:auto;max-width:760px;margin:auto;padding:32px;text-align:center}
+  #resultScreen h2{font-size:44px;margin:5px 0}
+  .rank{font-size:28px;color:var(--gold);font-weight:1000;margin:8px 0 20px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+  .stat{padding:20px;border-radius:20px;background:rgba(255,255,255,.06)}
+  .stat b{display:block;font-size:30px;color:white}
+  .slash{position:absolute;height:8px;width:220px;background:linear-gradient(90deg,transparent,#fff,var(--gold),transparent);box-shadow:0 0 22px #fff,0 0 38px var(--pink);border-radius:999px;transform:rotate(-18deg);animation:slash .45s ease-out forwards;pointer-events:none;z-index:50}
+  @keyframes slash{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-18deg)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6) rotate(-18deg)}}
+  .flash{position:fixed;inset:0;pointer-events:none;animation:flash .35s ease-out;z-index:40}
+  @keyframes flash{0%{background:rgba(255,255,255,.5)}100%{background:transparent}}
+  footer{text-align:center;padding:7px;color:#a994af;font-size:12px}
+  @media(max-width:900px){
+    .arena{grid-template-columns:1fr}.side{display:grid;grid-template-columns:180px 1fr}.camCard{height:130px}.answers{grid-template-columns:1fr}.answer{min-height:100px}.screen{height:auto;overflow:auto}.tips{grid-template-columns:1fr}
+    html,body{overflow:auto}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand">
+    <div class="logo">⚔️</div>
+    <div><h1>Air Slice: Jejak Agama Alam Melayu</h1><small>HistoryVerse • Tingkatan 2 • Bab 4</small></div>
+  </div>
+  <div class="hud" id="topHud" style="visibility:hidden">
+    <div class="pill" id="lifeHud">❤️❤️❤️</div>
+    <div class="pill">⭐ <span id="scoreHud">0</span></div>
+    <div class="pill">🔥 <span id="comboHud">0</span>x</div>
+    <div class="pill">⏱️ <span id="timeHud">20</span>s</div>
+    <button id="soundBtn" class="soundBtn" title="Bunyi">🔊</button>
+  </div>
+</header>
+
+<main class="main">
+  <section id="startScreen" class="screen active card">
+    <div class="heroIcon">⚔️✨</div>
+    <div class="subtitle">BAB 4 • AGAMA, KEPERCAYAAN & KEUNIKAN WARISAN</div>
+    <h2>AIR SLICE</h2>
+    <div class="rank">Jejak Agama Alam Melayu</div>
+    <p class="desc">Gunakan jari telunjuk di depan webcam untuk “menebas” jawapan yang betul. Soalan dipilih secara rawak daripada bank soalan Bab 4, dengan aras sederhana hingga mencabar.</p>
+    <div class="nameRow">
+      <input id="playerName" placeholder="Nama murid" maxlength="30">
+      <button id="startBtn">MULA MISI</button>
+    </div>
+    <button class="secondary" id="mouseBtn">Uji tanpa kamera</button>
+    <div class="tips">
+      <div class="tip"><b>☝️ Tunjuk</b>Gunakan hujung jari telunjuk sebagai kursor.</div>
+      <div class="tip"><b>⚔️ Tebas</b>Gerakkan jari dengan cepat merentasi jawapan.</div>
+      <div class="tip"><b>👑 Menang</b>Kumpul skor, combo dan tamatkan Boss Round.</div>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen">
+    <div class="arena">
+      <aside class="side">
+        <div class="camCard card">
+          <video id="video" playsinline></video>
+          <div id="cursor"></div>
+          <div class="cameraStatus" id="cameraStatus">Kamera belum aktif</div>
+        </div>
+        <div class="sideCard"><div style="color:var(--muted);font-size:12px">PEMAIN</div><div class="big" id="playerLabel">Murid</div></div>
+        <div class="sideCard"><div style="color:var(--muted);font-size:12px">PUSINGAN</div><div class="big"><span id="roundNow">1</span>/15</div></div>
+        <div class="sideCard"><div style="color:var(--muted);font-size:12px">TAHAP</div><div class="big" id="stageLabel">Agama & Kepercayaan</div></div>
+      </aside>
+
+      <section class="play card" id="playArea">
+        <div class="questionBox">
+          <div class="qMeta"><span id="qTag">ROUND 1</span><span id="difficulty">SEDERHANA</span></div>
+          <div class="question" id="questionText">Soalan...</div>
+        </div>
+
+        <div class="answers">
+          <div class="answer" data-letter="A" data-index="0"></div>
+          <div class="answer" data-letter="B" data-index="1"></div>
+          <div class="answer" data-letter="C" data-index="2"></div>
+        </div>
+
+        <div>
+          <div class="status" id="statusText">Sedia...</div>
+          <div class="progress"><div id="timeBar"></div></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="resultScreen" class="screen card">
+    <div style="font-size:68px">🏆</div>
+    <div class="subtitle">MISI TAMAT</div>
+    <h2 id="resultName">Syabas!</h2>
+    <div class="rank" id="rankText">Pendekar Alam Melayu</div>
+    <div class="stats">
+      <div class="stat">Skor<b id="finalScore">0</b></div>
+      <div class="stat">Betul<b id="finalCorrect">0/15</b></div>
+      <div class="stat">Combo Tertinggi<b id="maxCombo">0x</b></div>
+    </div>
+    <button id="restartBtn">MAIN SEMULA</button>
+  </section>
+</main>
+
+<footer>HistoryVerse Cikgu Zamzila • Game pembelajaran Sejarah Tingkatan 2</footer>
+</div>
+
+<script>
+
+let soundOn = true;
+let audioCtx = null;
+function tone(freq=440,dur=.08,type="sine",vol=.05){
+  if(!soundOn) return;
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    const now=audioCtx.currentTime;
+    g.gain.setValueAtTime(vol,now);
+    g.gain.exponentialRampToValueAtTime(.0001,now+dur);
+    o.start(now); o.stop(now+dur);
+  }catch(e){}
+}
+function sfx(name){
+  if(name==="slice"){ tone(780,.05,"sawtooth",.035); setTimeout(()=>tone(1080,.06,"triangle",.025),35); }
+  if(name==="good"){ tone(660,.08,"triangle",.05); setTimeout(()=>tone(880,.11,"triangle",.045),70); }
+  if(name==="bad"){ tone(180,.14,"square",.035); setTimeout(()=>tone(120,.15,"square",.025),70); }
+  if(name==="boss"){ tone(220,.12,"sawtooth",.04); setTimeout(()=>tone(330,.12,"sawtooth",.04),120); setTimeout(()=>tone(440,.18,"sawtooth",.04),240); }
+  if(name==="win"){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,"triangle",.045),i*110)); }
+}
+function confetti(){
+  const chars=["#ffd86b","#ff4fa3","#8f5cff","#7dffbd","#ffffff"];
+  for(let i=0;i<55;i++){
+    const c=document.createElement("div"); c.className="confetti";
+    c.style.left=Math.random()*100+"vw";
+    c.style.background=chars[Math.floor(Math.random()*chars.length)];
+    c.style.animationDelay=(Math.random()*.45)+"s";
+    c.style.transform=`rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(c); setTimeout(()=>c.remove(),3400);
+  }
+}
+
+const BANK = [
+{stage:"Agama & Kepercayaan",difficulty:"Sederhana",q:"Kepercayaan awal masyarakat kerajaan Alam Melayu, iaitu animisme dan dinamisme, berkait rapat dengan…",a:["sistem pemerintahan","alam sekeliling","kegiatan perdagangan"],c:1},
+{stage:"Agama & Kepercayaan",difficulty:"Sederhana",q:"Kepercayaan bahawa setiap makhluk, hidupan dan tumbuhan mempunyai roh atau semangat merujuk kepada…",a:["Dinamisme","Animisme","Hinduisme"],c:1},
+{stage:"Agama & Kepercayaan",difficulty:"Mencabar",q:"Siapakah Raja Funan yang memainkan peranan besar terhadap perkembangan agama Buddha?",a:["Indravarman I","Fan Shih-man","Suryavarman II"],c:1},
+{stage:"Bukti Sejarah",difficulty:"Sederhana",q:"Candi Po Nagar di Champa membuktikan pengaruh agama…",a:["Hindu","Buddha","Islam"],c:0},
+{stage:"Agama & Kepercayaan",difficulty:"Mencabar",q:"Kegemilangan agama Hindu dalam kerajaan Angkor dikaitkan dengan pemerintahan…",a:["Bhadravarman","Indravarman I","Suryavarman II"],c:2},
+{stage:"Bukti Sejarah",difficulty:"Mencabar",q:"Yang manakah pasangan Candi Buddha peninggalan kerajaan Srivijaya? I Candi Bahal, II Candi Sukuh, III Candi Jabong, IV Candi Muara Jambi",a:["II dan III","I dan IV","III dan IV"],c:1},
+{stage:"Bukti Sejarah",difficulty:"Mencabar",q:"Apakah bukti yang menunjukkan masyarakat Gangga Nagara menganut agama Buddha?",a:["Pembinaan Wattu","Penemuan tembikar tembaga","Penemuan patung Avalokitesvara"],c:2},
+{stage:"Agama & Kepercayaan",difficulty:"Mencabar",q:"Pemerintah Kedah yang memeluk agama Islam pada tahun 1136 ialah…",a:["Merong Mahawangsa","Maharaja Derbar Raja II","Raja Merah Silu"],c:1},
+{stage:"Agama & Kepercayaan",difficulty:"Mencabar",q:"Pegawai kerajaan Ming beragama Islam yang dilantik sebagai wakil tetap di Majapahit ialah…",a:["Wu Ping","Dong Duong","Gan Eng Chou"],c:0},
+{stage:"Bukti Sejarah",difficulty:"Mencabar",q:"Penyebaran Islam di Champa semasa pemerintahan Sultan Zainal Abidin dibuktikan melalui…",a:["pembinaan candi","batu bersurat dan batu nisan","penemuan patung Buddha"],c:1},
+{stage:"Keunikan Warisan",difficulty:"Mencabar",q:"Kerajaan Alam Melayu yang memilih raja daripada kalangan tentera ialah I Kedah, II Funan, III Champa, IV Srivijaya.",a:["I dan IV","II dan III","III dan IV"],c:1},
+{stage:"Keunikan Warisan",difficulty:"Sederhana",q:"Gelaran Sanskrit yang digunakan oleh raja Funan, Champa, Angkor dan Srivijaya ialah…",a:["Indra","Surya","Varman"],c:2},
+{stage:"Keunikan Warisan",difficulty:"Mencabar",q:"Apakah bantuan yang dihantar Maharaja Chola kepada Srivijaya pada abad ke-11?",a:["Makanan","Kewangan","Ketenteraan"],c:2},
+{stage:"Keunikan Warisan",difficulty:"Mencabar",q:"Mengapakah lembah Sungai Mekong, Musi, Bengawan Solo dan Brantas penting kepada kerajaan Alam Melayu?",a:["Kesuburan tanah","Pelabuhan entrepot","Pertahanan laut"],c:0},
+{stage:"Keunikan Warisan",difficulty:"Sederhana",q:"Bagaimanakah pemerintah kerajaan Alam Melayu memajukan kegiatan pertanian?",a:["Membina sistem pengairan","Membina lebih banyak pelabuhan","Mengimport semua hasil makanan"],c:0},
+{stage:"Boss Round",difficulty:"Boss",q:"Hikayat Amir Hamzah merupakan contoh karya persuratan awal. Apakah tulisan yang digunakan?",a:["Tulisan Jawi","Tulisan Kawi","Tulisan Palava"],c:0},
+{stage:"Boss Round",difficulty:"Boss",q:"Masyarakat Alam Melayu bersikap terbuka dalam amalan beragama. Apakah kesan sikap tersebut?",a:["Perdagangan terhenti","Wujud keunikan warisan masyarakat","Pemerintahan beraja lenyap"],c:1},
+{stage:"Boss Round",difficulty:"Boss",q:"Antara warisan berikut, yang masih diwarisi sehingga hari ini ialah I Ilmu matematik, II Sistem pelayaran, III Pemerintahan beraja, IV Kebijaksanaan pemerintah.",a:["I dan II","II dan III","III dan IV"],c:2},
+{stage:"Boss Round",difficulty:"Boss",q:"Pelabuhan yang berada antara pelabuhan pembekal dengan pelabuhan entrepot ialah…",a:["Pelabuhan bandar","Pelabuhan nelayan","Pelabuhan bebas"],c:2},
+{stage:"Keunikan Warisan",difficulty:"Mencabar",q:"Kawasan lembah sungai yang subur memberi kelebihan utama kepada kerajaan Alam Melayu dalam aspek…",a:["pertanian","perlombongan","pembinaan kapal"],c:0},
+{stage:"Bukti Sejarah",difficulty:"Mencabar",q:"Penemuan patung Avalokitesvara paling kuat menunjukkan pengaruh agama…",a:["Islam","Buddha","Hindu"],c:1},
+{stage:"Agama & Kepercayaan",difficulty:"Mencabar",q:"Jika sesuatu masyarakat mempercayai kuasa pada benda tertentu, kepercayaan itu lebih hampir kepada…",a:["Dinamisme","Animisme","Buddhisme"],c:0},
+{stage:"Keunikan Warisan",difficulty:"Mencabar",q:"Pemilihan raja daripada kalangan tentera menunjukkan keunikan warisan dalam aspek…",a:["sistem pemerintahan","sistem tulisan","sistem pertanian"],c:0},
+{stage:"Keunikan Warisan",difficulty:"Mencabar",q:"Sistem pengairan yang baik paling membantu kerajaan Alam Melayu meningkatkan…",a:["hasil pertanian","aktiviti pelayaran","kegiatan keagamaan"],c:0},
+{stage:"Boss Round",difficulty:"Boss",q:"Keterbukaan masyarakat Alam Melayu menerima pengaruh luar tanpa menghapuskan unsur tempatan paling jelas menghasilkan…",a:["keunikan warisan","kejatuhan kerajaan","penghapusan adat"],c:0}
+];
+
+let questions=[], current=0, score=0, lives=3, combo=0, maxCombo=0, correct=0;
+let timer=20, timerId=null, locked=false, useMouse=false, lastPt=null, camera=null;
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+function shuffle(arr){ return [...arr].sort(()=>Math.random()-.5); }
+
+function buildQuestionSet(){
+  const normal = shuffle(BANK.filter(x=>x.stage!=="Boss Round")).slice(0,14);
+  const boss = shuffle(BANK.filter(x=>x.stage==="Boss Round")).slice(0,1);
+  questions = [...normal,boss];
+}
+
+function showScreen(id){
+  $$(".screen").forEach(s=>s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+function rankFromScore(s){
+  if(s>=150) return "👑 LEGENDA HISTORYVERSE";
+  if(s>=110) return "⚔️ Pendekar Alam Melayu";
+  if(s>=70) return "📜 Pengkaji Warisan";
+  return "🧭 Penjelajah Sejarah";
+}
+
+async function startGame(mouse=false){
+  useMouse = mouse;
+  buildQuestionSet();
+  current=0; score=0; lives=3; combo=0; maxCombo=0; correct=0;
+  $("#playerLabel").textContent = $("#playerName").value.trim() || "Murid";
+  $("#topHud").style.visibility="visible";
+  showScreen("#gameScreen");
+  updateHud();
+  if(!mouse){
+    try { await initHands(); }
+    catch(e){
+      console.warn(e);
+      useMouse=true;
+      $("#cameraStatus").textContent="⚠️ Kamera gagal dibuka";
+      $("#statusText").textContent="Kamera gagal dibuka — mod tetikus diaktifkan.";
+    }
+  }
+  renderQuestion();
+}
+
+function updateHud(){
+  $("#lifeHud").textContent = "❤️".repeat(Math.max(lives,0)) + "🖤".repeat(Math.max(0,3-lives));
+  $("#scoreHud").textContent=score;
+  $("#comboHud").textContent=combo;
+  $("#timeHud").textContent=Math.ceil(timer);
+}
+
+function renderQuestion(){
+  locked=false;
+  if(current>=questions.length || lives<=0){ return endGame(); }
+  const q=questions[current];
+  $("#roundNow").textContent=current+1;
+  $("#stageLabel").textContent=q.stage;
+  $("#qTag").textContent=q.stage==="Boss Round" ? "👑 BOSS ROUND" : `ROUND ${current+1}`;
+  $("#difficulty").textContent=q.difficulty.toUpperCase();
+  $("#questionText").textContent=q.q;
+  $("#playArea").classList.toggle("bossGlow", q.stage==="Boss Round");
+  if(q.stage==="Boss Round") sfx("boss");
+  $$(".answer").forEach((el,i)=>{
+    el.className="answer";
+    el.textContent=q.a[i];
+  });
+  $("#statusText").textContent = q.stage==="Boss Round" ? "👑 Boss Round — fikir sebelum tebas!" : "Tebas jawapan yang betul!";
+  timer=20; updateHud();
+  $("#timeBar").style.width="100%";
+  clearInterval(timerId);
+  const started=Date.now();
+  timerId=setInterval(()=>{
+    const elapsed=(Date.now()-started)/1000;
+    timer=Math.max(0,20-elapsed);
+    $("#timeBar").style.width=(timer/20*100)+"%";
+    updateHud();
+    if(timer<=0){
+      clearInterval(timerId);
+      if(!locked) handleAnswer(-1, null, true);
+    }
+  },100);
+}
+
+function handleAnswer(idx, el, timeout=false){
+  if(locked) return;
+  locked=true;
+  clearInterval(timerId);
+  const q=questions[current];
+  const right = idx===q.c;
+  if(right){
+    sfx("good");
+    correct++; combo++; maxCombo=Math.max(maxCombo,combo);
+    const bonus = combo>=5?5:combo>=3?3:combo>=2?2:0;
+    score += 10 + bonus;
+    if(el) el.classList.add("correct");
+    $("#statusText").textContent = combo>=5 ? "⚔️ MASTER SLASH! +" +(10+bonus) : combo>=3 ? "🔥 HISTORY STREAK! +" +(10+bonus) : "✅ Betul! +" +(10+bonus);
+    flash(true);
+  } else {
+    sfx("bad");
+    lives--; combo=0;
+    if(el) el.classList.add("wrong");
+    $$(".answer")[q.c].classList.add("correct");
+    $("#statusText").textContent = timeout ? "⏱️ Masa tamat! Jawapan betul ditunjukkan." : "❌ Salah! Nyawa -1";
+    flash(false);
+  }
+  updateHud();
+  setTimeout(()=>{current++; renderQuestion();},1300);
+}
+
+function flash(good){
+  const f=document.createElement("div"); f.className="flash";
+  f.style.background=good?"rgba(125,255,189,.25)":"rgba(255,80,110,.25)";
+  document.body.appendChild(f); setTimeout(()=>f.remove(),350);
+}
+
+function slashAt(x,y){
+  sfx("slice");
+  for(let i=0;i<5;i++){
+    const t=document.createElement("div"); t.className="trail";
+    t.style.left=(x-i*14)+"px"; t.style.top=(y+i*5)+"px";
+    document.body.appendChild(t); setTimeout(()=>t.remove(),320);
+  }
+  const s=document.createElement("div"); s.className="slash";
+  s.style.left=x+"px"; s.style.top=y+"px";
+  document.body.appendChild(s); setTimeout(()=>s.remove(),500);
+}
+
+function endGame(){
+  clearInterval(timerId);
+  $("#topHud").style.visibility="hidden";
+  showScreen("#resultScreen");
+  $("#resultName").textContent="Syabas, "+($("#playerLabel").textContent||"Murid")+"!";
+  $("#finalScore").textContent=score;
+  $("#finalCorrect").textContent=correct+"/"+questions.length;
+  $("#maxCombo").textContent=maxCombo+"x";
+  $("#rankText").textContent=rankFromScore(score);
+  if(camera){ try{camera.stop()}catch(e){} camera=null; }
+  sfx("win"); confetti();
+}
+
+$("#startBtn").onclick=()=>startGame(false);
+$("#mouseBtn").onclick=()=>startGame(true);
+$("#restartBtn").onclick=()=>showScreen("#startScreen");
+
+
+$("#soundBtn").onclick=()=>{
+  soundOn=!soundOn;
+  $("#soundBtn").textContent=soundOn?"🔊":"🔇";
+};
+
+$$(".answer").forEach(el=>{
+  el.addEventListener("click",e=>{
+    if(useMouse){
+      const r=e.currentTarget.getBoundingClientRect();
+      slashAt(r.left+r.width/2,r.top+r.height/2);
+      handleAnswer(+e.currentTarget.dataset.index,e.currentTarget);
+    }
+  });
+});
+
+async function initHands(){
+  const video=$("#video"), cursor=$("#cursor");
+  cursor.style.display="block";
+  const hands=new Hands({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+  hands.setOptions({
+    maxNumHands:1,
+    modelComplexity:1,
+    minDetectionConfidence:.65,
+    minTrackingConfidence:.6
+  });
+  hands.onResults(onResults);
+  $("#cameraStatus").textContent="📷 Kamera aktif • Tunjuk jari telunjuk";
+  camera=new Camera(video,{
+    onFrame:async()=>{await hands.send({image:video});},
+    width:640,height:480
+  });
+  await camera.start();
+}
+
+function onResults(results){
+  if(!results.multiHandLandmarks || !results.multiHandLandmarks.length) return;
+  const lm=results.multiHandLandmarks[0];
+  const tip=lm[8];
+  const cam=$("#video").getBoundingClientRect();
+  const screenX=cam.left + (1-tip.x)*cam.width;
+  const screenY=cam.top + tip.y*cam.height;
+  const cursor=$("#cursor");
+  cursor.style.left=((1-tip.x)*100)+"%";
+  cursor.style.top=(tip.y*100)+"%";
+
+  if(lastPt){
+    const dx=screenX-lastPt.x, dy=screenY-lastPt.y;
+    const speed=Math.hypot(dx,dy);
+    if(speed>30 && !locked){
+      const target=document.elementFromPoint(screenX,screenY);
+      const ans=target && target.closest ? target.closest(".answer") : null;
+      if(ans){
+        slashAt(screenX,screenY);
+        handleAnswer(+ans.dataset.index,ans);
+      }
+    }
+  }
+  lastPt={x:screenX,y:screenY};
+}
+</script>
+</body>
+</html>
